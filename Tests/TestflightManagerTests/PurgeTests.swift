@@ -123,6 +123,66 @@ final class PurgeTests: XCTestCase {
     XCTAssertTrue(printedMessages.contains("Dry run: no testers were removed."))
   }
 
+  func testDryRunWritesInactiveTestersToFileWhenRequested() async throws {
+    let credentials = try makeCredentials()
+
+    var printedMessages: [String] = []
+    let testers = [
+      makeTester(id: "inactive", email: "inactive@example.com")
+    ]
+
+    let outputURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString)
+      .appendingPathExtension("csv")
+    temporaryFiles.append(outputURL)
+
+    let provider = PurgeEnvironmentProvider.shared
+    await provider.set(
+      PurgeEnvironment(
+        loadCredentials: { credentials },
+        fetchApps: { _ in [] },
+        fetchBetaGroupsForApp: { _, _ in [] },
+        fetchBetaGroup: { _, _ in
+          BetaGroup(
+            type: .betaGroups,
+            id: "group",
+            relationships: .init(
+              app: .init(data: .init(type: .apps, id: "app"))
+            )
+          )
+        },
+        fetchBetaTesters: { _, _ in testers },
+        fetchUsage: { _, _, _ in [:] },
+        removeTesters: { _, _, _ in XCTFail("removeTesters should not be called") },
+        print: { printedMessages.append($0) },
+        prompt: { _ in nil },
+        confirm: { _ in true }
+      )
+    )
+    defer { Task { await provider.reset() } }
+
+    let command = try Purge.parse([
+      "--app-id", "app",
+      "--beta-group-id", "group",
+      "--dry-run",
+      "--output-path", outputURL.path,
+      "--output-format", "csv"
+    ])
+
+    try await command.run()
+
+    XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+    let contents = try String(contentsOf: outputURL)
+    XCTAssertTrue(contents.contains("tester_id"))
+    XCTAssertTrue(contents.contains("inactive"))
+    XCTAssertFalse(printedMessages.contains(where: { $0.contains("inactive@example.com") }))
+    XCTAssertTrue(
+      printedMessages.contains {
+        $0.contains(outputURL.lastPathComponent)
+      }
+    )
+  }
+
   func testRunThrowsWhenCredentialsMissing() async {
     let provider = PurgeEnvironmentProvider.shared
     await provider.set(

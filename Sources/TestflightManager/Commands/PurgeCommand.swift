@@ -41,6 +41,11 @@ struct Purge: AsyncParsableCommand {
     }
   }
 
+  enum OutputFormat: String, ExpressibleByArgument {
+    case text
+    case csv
+  }
+
   @Option(
     name: [.customLong("app-id")],
     help: "Identifier of the app that owns the beta group."
@@ -69,6 +74,18 @@ struct Purge: AsyncParsableCommand {
     help: "Prompt to select options when not provided."
   )
   var interactive: Bool = false
+
+  @Option(
+    name: [.customLong("output-path")],
+    help: "Write inactive tester details to the specified file instead of listing all entries."
+  )
+  var outputPath: String?
+
+  @Option(
+    name: [.customLong("output-format")],
+    help: "Output file format (text or csv)."
+  )
+  var outputFormat: OutputFormat = .text
 
   func run() async throws {
     let environment = await PurgeEnvironmentProvider.shared.current()
@@ -131,8 +148,20 @@ struct Purge: AsyncParsableCommand {
           == .orderedAscending
       }
 
-      for tester in sortedInactive {
-        environment.print(" - \(displayName(for: tester))")
+      if let path = context.outputPath {
+        try writeInactiveTesters(
+          sortedInactive,
+          format: outputFormat,
+          path: path,
+          period: context.period
+        )
+        environment.print(
+          "Wrote \(inactiveTesters.count) inactive tester(s) to \(path)."
+        )
+      } else {
+        for tester in sortedInactive {
+          environment.print(" - \(displayName(for: tester))")
+        }
       }
 
       var shouldDryRun = context.dryRun
@@ -201,6 +230,8 @@ extension Purge {
     let period: InactivityWindow
     let dryRun: Bool
     let requiresConfirmation: Bool
+    let outputPath: String?
+    let outputFormat: OutputFormat
   }
 
   fileprivate func resolveContext(using environment: PurgeEnvironment, credentials: Credentials)
@@ -218,7 +249,9 @@ extension Purge {
         betaGroupID: betaGroupID,
         period: period ?? .days30,
         dryRun: dryRun,
-        requiresConfirmation: false
+        requiresConfirmation: false,
+        outputPath: Self.normalizeOutputPath(outputPath),
+        outputFormat: outputFormat
       )
     }
 
@@ -247,12 +280,23 @@ extension Purge {
       resolvedDryRun = try askDryRun(preselected: dryRun, environment: environment)
     }
 
+    let outputSelection = try askOutputDestination(
+      currentPath: outputPath,
+      currentFormat: outputFormat,
+      environment: environment
+    )
+
+    let resolvedOutputPath = outputSelection.path
+    let resolvedOutputFormat = outputSelection.format
+
     return RunContext(
       appID: selectedAppID,
       betaGroupID: selectedGroupID,
       period: resolvedPeriod,
       dryRun: resolvedDryRun,
-      requiresConfirmation: !resolvedDryRun
+      requiresConfirmation: !resolvedDryRun,
+      outputPath: resolvedOutputPath,
+      outputFormat: resolvedOutputFormat
     )
   }
 
@@ -399,5 +443,126 @@ extension Purge {
   private func leftPad(_ value: String, width: Int) -> String {
     guard value.count < width else { return value }
     return String(repeating: " ", count: width - value.count) + value
+  }
+
+  private func askOutputDestination(
+    currentPath: String?,
+    currentFormat: OutputFormat,
+    environment: PurgeEnvironment
+  ) throws -> (path: String?, format: OutputFormat) {
+    if let normalizedPath = Self.normalizeOutputPath(currentPath) {
+      return (normalizedPath, currentFormat)
+    }
+
+    let response = try environment.prompt("Write inactive testers to a file? (y/N): ")?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+
+    guard let response, !response.isEmpty, response == "y" || response == "yes" else {
+      return (nil, currentFormat)
+    }
+
+    var resolvedPath: String?
+    while resolvedPath == nil {
+      let candidate = try environment.prompt("Enter output file path: ")?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      if let normalized = Self.normalizeOutputPath(candidate) {
+        resolvedPath = normalized
+      } else {
+        environment.print("Output path cannot be empty.")
+      }
+    }
+
+    var resolvedFormat = currentFormat
+    while true {
+      let promptMessage = "Output format (text/csv) [\(resolvedFormat.rawValue)]: "
+      let formatInput = try environment.prompt(promptMessage)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased()
+      guard let formatInput, !formatInput.isEmpty else { break }
+      guard let candidate = OutputFormat(rawValue: formatInput) else {
+        environment.print("Invalid format. Enter 'text' or 'csv'.")
+        continue
+      }
+      resolvedFormat = candidate
+      break
+    }
+
+    return (resolvedPath, resolvedFormat)
+  }
+
+  private func writeInactiveTesters(
+    _ testers: [BetaTester],
+    format: OutputFormat,
+    path: String,
+    period: InactivityWindow
+  ) throws {
+    let url = URL(fileURLWithPath: path)
+    let directory = url.deletingLastPathComponent()
+    if directory.path != "" && directory.path != "." {
+      try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true
+      )
+    }
+
+    let contents: String
+    switch format {
+    case .text:
+      var lines: [String] = [
+        "Inactive testers (no sessions in last \(period.description))",
+        ""
+      ]
+      lines.append(contentsOf: testers.map { displayName(for: $0) })
+      contents = lines.joined(separator: "\n") + "\n"
+    case .csv:
+      var rows: [String] = [
+        "tester_id,first_name,last_name,email,state"
+      ]
+      for tester in testers {
+        let attrs = tester.attributes
+        let first = attrs?.firstName ?? ""
+        let last = attrs?.lastName ?? ""
+        let email = attrs?.email ?? ""
+        let state = attrs?.state?.rawValue ?? ""
+        let columns = [
+          escapeCSV(tester.id),
+          escapeCSV(first),
+          escapeCSV(last),
+          escapeCSV(email),
+          escapeCSV(state)
+        ]
+        rows.append(columns.joined(separator: ","))
+      }
+      contents = rows.joined(separator: "\n") + "\n"
+    }
+
+    do {
+      try contents.write(to: url, atomically: true, encoding: .utf8)
+    } catch {
+      throw CLIError.invalidInput(
+        "Failed to write inactive tester output to \(path): \(error.localizedDescription)"
+      )
+    }
+  }
+
+  private func escapeCSV(_ value: String) -> String {
+    var field = value
+    if field.contains("\"") {
+      field = field.replacingOccurrences(of: "\"", with: "\"\"")
+    }
+    if field.contains(",") || field.contains("\"") || field.contains("\n") {
+      return "\"\(field)\""
+    }
+    return field
+  }
+
+  private static func normalizeOutputPath(_ rawPath: String?) -> String? {
+    guard
+      let rawPath,
+      !rawPath.isEmpty
+    else { return nil }
+    let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
   }
 }
