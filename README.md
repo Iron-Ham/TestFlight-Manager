@@ -1,107 +1,232 @@
-# Testflight Manager
+# TestFlight Manager
 
-Command-line utility for managing TestFlight testers via the App Store Connect API. It helps teams log in once, store credentials securely, configure sensible defaults, and purge inactive testers quickly.
+A command-line tool for managing TestFlight users via App Store Connect. This utility helps you automate the removal of inactive beta testers from your TestFlight beta groups.
+
+## Features
+
+- **Authenticate** with App Store Connect using API credentials
+- **Configure** default settings for easy reuse
+- **Purge** inactive testers based on session activity over various time periods
+- **Interactive mode** for easy app and beta group selection
+- **Dry run** support to preview changes before applying them
 
 ## Prerequisites
 
-- macOS 13 or later
-- Swift 5.9 toolchain (Xcode 15 or the latest Swift toolchain)
-- App Store Connect API key (Issuer ID, Key ID, and `.p8` private key file)
+- macOS 13.0 or later (or Linux)
+- Swift 6.2 or later
+- App Store Connect API credentials (issuer ID, key ID, and private key file)
+
+## Getting App Store Connect API Credentials
+
+To use this tool, you'll need to create API credentials in App Store Connect:
+
+1. Sign in to [App Store Connect](https://appstoreconnect.apple.com/)
+2. Go to **Users and Access** > **Integrations** > **App Store Connect API**
+3. Click the **+** button to create a new key
+4. Give it a name and select **App Manager** role (or appropriate role for your needs)
+5. Click **Generate**
+6. Download the `.p8` private key file (you can only download it once!)
+7. Note the **Issuer ID** and **Key ID** displayed on the page
+
+Keep your private key file secure and never commit it to version control.
 
 ## Installation
 
-Clone the repository and build the executable using Swift Package Manager:
+### Building from Source
+
+Clone the repository and build the executable:
 
 ```bash
-# Clone the repo
 git clone https://github.com/Iron-Ham/TestFlight-Manager.git
 cd TestFlight-Manager
-
-# Build once to validate dependencies
-swift build
+swift build -c release
 ```
 
-To install the executable globally, use SwiftPM’s install command:
+The compiled binary will be located at `.build/release/TestFlightManager`.
+
+### Optional: Install to System Path
+
+To make the tool available system-wide:
 
 ```bash
-swift build -c release
-cp .build/release/TestflightManager /usr/local/bin/testflightmanager
+sudo cp .build/release/TestFlightManager /usr/local/bin/testflight-manager
 ```
-
-You can choose another location on your PATH if `/usr/local/bin` requires elevated privileges.
-
-## Configuration and Login
-
-Before running management commands, configure defaults and store credentials:
-
-1. **Configure defaults** (optional but recommended):
-   ```bash
-   testflightmanager config
-   ```
-   This command interactively prompts for default app ID, beta group ID, inactivity period, and dry-run preference. You can skip any value to keep existing settings.
-
-2. **Login** (required):
-   ```bash
-   testflightmanager login
-   ```
-   Provide the App Store Connect API Issuer ID, Key ID, and the path to your `.p8` private key. The tool verifies access, then stores credentials securely in the keychain.
 
 ## Usage
 
-### Purge Inactive Testers
+TestFlight Manager provides three main commands: `login`, `config`, and `purge`.
 
-Remove testers who have not launched the app during a selected period:
+### 1. Authentication (`login`)
 
-```bash
-testflightmanager purge --app-id <app-id> --beta-group-id <group-id> --period 30d
-```
-
-Flags:
-- `--app-id` / `--beta-group-id`: Identifiers to target an app and beta group. If omitted, the command can prompt interactively when `--interactive` or configuration defaults are available.
-- `--period`: Inactivity window (`7d`, `30d`, `90d`, `365d`). Defaults to `30d` if not provided.
-- `--dry-run`: Show inactive testers without removing them.
-- `--interactive` (`-i`): Prompt for app, group, period, and dry-run choice when flags are missing.
-
-Example interactive flow:
+Authenticate with App Store Connect using your API credentials:
 
 ```bash
-testflightmanager purge -i
+testflight-manager login \
+  --issuer-id YOUR_ISSUER_ID \
+  --key-id YOUR_KEY_ID \
+  --private-key-path /path/to/AuthKey_XXXXX.p8
 ```
 
-The command:
-- Lists eligible apps showing both the display name and bundle identifier.
-- Lists beta groups for the chosen app.
-- Shows dry-run summary: total testers and count meeting the inactivity criteria.
-- In removal mode, asks for confirmation before deleting and prints the number of testers removed.
+**Options:**
+- `--issuer-id <issuer-id>` - App Store Connect API issuer identifier
+- `--key-id <key-id>` - App Store Connect API key identifier
+- `--private-key-path <path>` - Path to the .p8 private key file
+- `--skip-verification` - Skip the API verification call (not recommended)
 
-### Display Current Configuration
+The credentials will be saved securely for future use.
+
+### 2. Configuration (`config`)
+
+Interactively configure default values to avoid repeatedly entering credentials:
 
 ```bash
-testflightmanager config --show
+testflight-manager config
 ```
 
-Opens the stored configuration values in JSON format.
+This command will prompt you for:
+- Issuer ID
+- Key ID
+- Private key path (with validation that the file exists)
 
-## Development
+Once configured, you can run `login` without any arguments, and it will use your saved defaults.
 
-Format the project:
+### 3. Purge Inactive Testers (`purge`)
+
+Remove inactive testers from a beta group based on their session activity:
 
 ```bash
-./swift-format.sh
+testflight-manager purge \
+  --app-id YOUR_APP_ID \
+  --beta-group-id YOUR_BETA_GROUP_ID \
+  --period 30d \
+  --dry-run
 ```
 
-Run tests:
+**Options:**
+- `--app-id <app-id>` - Identifier of the app that owns the beta group
+- `--beta-group-id <beta-group-id>` - Identifier of the beta group to purge
+- `--period <period>` - Inactivity window: `7d`, `30d`, `90d`, or `365d` (default: 30d)
+- `--dry-run` - List inactive testers without removing them
+- `-i, --interactive` - Interactive mode with prompts for app/group selection
+
+**Interactive Mode:**
+
+For easier use, enable interactive mode to select your app and beta group from a list:
 
 ```bash
-swift test
+testflight-manager purge --interactive
 ```
 
-## Troubleshooting
+This will guide you through:
+1. Selecting an app from your accessible apps
+2. Choosing a beta group from that app
+3. Selecting an inactivity period
+4. Choosing whether to do a dry run
+5. Confirming the removal (if not a dry run)
 
-- **`credentialsNotFound`**: Run `testflightmanager login` first.
-- **API permission errors**: Confirm the API key has "Developer" or "App Manager" access to the relevant apps.
-- **Interactive selection missing apps/groups**: Ensure the authenticated key is granted visibility to those resources.
+## Examples
+
+### Complete Workflow
+
+1. **First time setup:**
+   ```bash
+   # Configure your credentials
+   testflight-manager config
+   
+   # Login (will use configured credentials)
+   testflight-manager login
+   ```
+
+2. **Find and remove inactive testers (safe mode):**
+   ```bash
+   # Use interactive mode with dry run to see what would be removed
+   testflight-manager purge --interactive --dry-run
+   ```
+
+3. **Remove inactive testers:**
+   ```bash
+   # Actually remove inactive testers
+   testflight-manager purge --interactive
+   ```
+
+### Non-Interactive Usage
+
+If you know your app ID and beta group ID:
+
+```bash
+# Dry run first to see who would be removed
+testflight-manager purge \
+  --app-id 1234567890 \
+  --beta-group-id abcd-1234-efgh-5678 \
+  --period 90d \
+  --dry-run
+
+# If satisfied, remove the --dry-run flag
+testflight-manager purge \
+  --app-id 1234567890 \
+  --beta-group-id abcd-1234-efgh-5678 \
+  --period 90d
+```
+
+### Login with Specific Credentials
+
+Override configured defaults for a one-time login:
+
+```bash
+testflight-manager login \
+  --issuer-id 12345678-abcd-1234-abcd-123456789012 \
+  --key-id ABC1234567 \
+  --private-key-path ~/Downloads/AuthKey_ABC1234567.p8
+```
+
+## How It Works
+
+1. **Authentication**: The tool uses your App Store Connect API credentials to authenticate via the [AppStoreConnect-Swift-SDK](https://github.com/AvdLee/appstoreconnect-swift-sdk)
+
+2. **Activity Detection**: It queries TestFlight for tester session counts within the specified time period (7, 30, 90, or 365 days)
+
+3. **Identification**: Testers with zero sessions in the specified period are marked as inactive
+
+4. **Removal**: In non-dry-run mode, inactive testers are removed from the beta group
+
+## Project Structure
+
+```
+TestFlightManager/
+├── Sources/
+│   └── TestflightManager/
+│       ├── Commands/          # CLI command implementations
+│       │   ├── LoginCommand.swift
+│       │   ├── ConfigCommand.swift
+│       │   └── PurgeCommand.swift
+│       ├── Environments/      # Environment protocols for testability
+│       ├── Models/            # Data models (Credentials, Configuration)
+│       ├── Services/          # Business logic (stores, verifiers)
+│       └── Support/           # Utilities and errors
+└── Tests/
+    └── TestflightManagerTests/
+```
+
+## Dependencies
+
+- [AppStoreConnect-Swift-SDK](https://github.com/AvdLee/appstoreconnect-swift-sdk) - For App Store Connect API integration
+- [swift-argument-parser](https://github.com/apple/swift-argument-parser) - For CLI argument parsing
+
+## Security Notes
+
+- Credentials are stored locally in your home directory
+- Never commit your `.p8` private key file to version control
+- The tool requires appropriate App Store Connect API permissions
+- Always test with `--dry-run` first before removing testers
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+See the repository for license information.
+
+## Support
+
+For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/Iron-Ham/TestFlight-Manager).
