@@ -80,10 +80,29 @@ struct PurgeEnvironment: @unchecked Sendable {
           limit: 200
         )
 
+      let progressLogger = Logger.stdout
+      let progressTheme = progressLogger.consoleTheme
+      progressLogger.notice(
+        "Fetching beta testers for group "
+          + progressLogger.applying(progressTheme.emphasis, to: groupID)
+          + "..."
+      )
+
       var testers: [BetaTester] = []
+      var pageIndex = 0
+      var lastReportedCount = 0
       for try await page in provider.paged(request) {
+        pageIndex += 1
         testers.append(contentsOf: page.data)
+        let total = testers.count
+        if pageIndex == 1 || total - lastReportedCount >= 500 {
+          let formattedCount = progressLogger.applying(progressTheme.emphasis, to: "\(total)")
+          progressLogger.info("Fetched " + formattedCount + " beta tester(s)...")
+          lastReportedCount = total
+        }
       }
+      let totalLabel = progressLogger.applying(progressTheme.emphasis, to: "\(testers.count)")
+      progressLogger.notice("Completed fetching " + totalLabel + " beta tester(s).")
       return testers
     },
     fetchUsage: { credentials, groupID, period in
@@ -114,12 +133,35 @@ struct PurgeEnvironment: @unchecked Sendable {
       )
 
       var sessionCounts: [String: Int] = [:]
+      let progressLogger = Logger.stdout
+      let progressTheme = progressLogger.consoleTheme
+      progressLogger.notice(
+        "Fetching usage metrics for group "
+          + progressLogger.applying(progressTheme.emphasis, to: groupID)
+          + "..."
+      )
+
+      var pageIndex = 0
+      var lastReportedCount = 0
       for try await page in provider.paged(request) {
+        pageIndex += 1
         let pageCounts = page.sessionCountsByTester()
         for (testerID, totalSessions) in pageCounts {
           sessionCounts[testerID, default: 0] += totalSessions
         }
+        let total = sessionCounts.count
+        if pageIndex == 1 || total - lastReportedCount >= 500 {
+          let formattedCount = progressLogger.applying(progressTheme.emphasis, to: "\(total)")
+          progressLogger.info(
+            "Processed metrics for " + formattedCount + " tester(s)..."
+          )
+          lastReportedCount = total
+        }
       }
+      let coverageLabel = progressLogger.applying(progressTheme.emphasis, to: "\(sessionCounts.count)")
+      progressLogger.notice(
+        "Completed metrics aggregation for " + coverageLabel + " tester(s)."
+      )
       return sessionCounts
     },
     removeTesters: { credentials, groupID, testerIDs in
