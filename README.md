@@ -198,23 +198,6 @@ testflight-manager login \
 
 4. **Removal**: In non-dry-run mode, inactive testers are removed from the beta group
 
-## Project Structure
-
-```
-TestFlightManager/
-├── Sources/
-│   └── TestflightManager/
-│       ├── Commands/          # CLI command implementations
-│       │   ├── LoginCommand.swift
-│       │   ├── ConfigCommand.swift
-│       │   └── PurgeCommand.swift
-│       ├── Environments/      # Environment protocols for testability
-│       ├── Models/            # Data models (Credentials, Configuration)
-│       ├── Services/          # Business logic (stores, verifiers)
-│       └── Support/           # Utilities and errors
-└── Tests/
-    └── TestflightManagerTests/
-```
 
 ## Dependencies
 
