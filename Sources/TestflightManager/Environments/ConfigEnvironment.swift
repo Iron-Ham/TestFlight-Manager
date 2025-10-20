@@ -25,7 +25,7 @@ struct ConfigEnvironment: @unchecked Sendable {
       return readLine()
     },
     print: { message in
-      Swift.print(message)
+      Logger.stdout.info(message)
     }
   )
 }

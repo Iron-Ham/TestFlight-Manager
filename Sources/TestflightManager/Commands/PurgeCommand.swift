@@ -264,16 +264,29 @@ extension Purge {
     }
 
     environment.print("Select an app:")
+    let appLogger = Logger.stdout
+    let appTheme = appLogger.consoleTheme
+    let appDivider = appLogger.applying(appTheme.muted, to: " → ")
+    let appBullet = appLogger.applying(appTheme.muted, to: " • ")
+
     for (index, app) in apps.enumerated() {
       let name = app.attributes?.name ?? "(no name)"
-      let bundleID = app.attributes?.bundleID?.trimmingCharacters(
-        in: CharacterSet.whitespacesAndNewlines
-      )
+      let bundleID = app.attributes?.bundleID?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
       let cleanedBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
-      let identifiers = [cleanedBundleID, "app-id: \(app.id)"]
-        .compactMap { $0 }
-        .joined(separator: " | ")
-      environment.print(" [\(index + 1)] \(name) — \(identifiers)")
+
+      let indexLabel = appLogger.applying(appTheme.metadata, to: "[")
+        + appLogger.applying(appTheme.emphasis, to: "\(index + 1)")
+        + appLogger.applying(appTheme.metadata, to: "]")
+
+      let nameStyled = appLogger.applying(appTheme.commitSubject, to: name)
+      var details: [String] = []
+      if let cleanedBundleID {
+        details.append(appLogger.applying(appTheme.path, to: cleanedBundleID))
+      }
+      details.append(appLogger.applying(appTheme.metadata, to: "id: \(app.id)"))
+
+      let suffix = details.isEmpty ? "" : appDivider + details.joined(separator: appBullet)
+      environment.print(" \(indexLabel) \(nameStyled)\(suffix)")
     }
 
     while true {
@@ -296,9 +309,31 @@ extension Purge {
     }
 
     environment.print("Select a beta group:")
+    let groupLogger = Logger.stdout
+    let groupTheme = groupLogger.consoleTheme
+    let groupDivider = groupLogger.applying(groupTheme.muted, to: " → ")
+    let groupBullet = groupLogger.applying(groupTheme.muted, to: " • ")
+
     for (index, group) in groups.enumerated() {
       let name = group.attributes?.name ?? "(no name)"
-      environment.print(" [\(index + 1)] \(name) — \(group.id)")
+      let publicLink = group.attributes?.publicLink
+      let publicLinkID = group.attributes?.publicLinkID
+
+      let indexLabel = groupLogger.applying(groupTheme.metadata, to: "[")
+        + groupLogger.applying(groupTheme.emphasis, to: "\(index + 1)")
+        + groupLogger.applying(groupTheme.metadata, to: "]")
+
+      let nameStyled = groupLogger.applying(groupTheme.commitSubject, to: name)
+      var details: [String] = [groupLogger.applying(groupTheme.metadata, to: "id: \(group.id)")]
+      if let publicLink {
+        details.append(groupLogger.applying(groupTheme.path, to: publicLink))
+      }
+      if let publicLinkID {
+        details.append(groupLogger.applying(groupTheme.metadata, to: "link-id: \(publicLinkID)"))
+      }
+
+      let suffix = details.isEmpty ? "" : groupDivider + details.joined(separator: groupBullet)
+      environment.print(" \(indexLabel) \(nameStyled)\(suffix)")
     }
 
     while true {

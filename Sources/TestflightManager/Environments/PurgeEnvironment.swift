@@ -141,7 +141,7 @@ struct PurgeEnvironment: @unchecked Sendable {
       try await provider.request(request)
     },
     print: { message in
-      Swift.print(message)
+      Logger.stdout.info(message)
     },
     prompt: { message in
       FileHandle.standardOutput.write(Data(message.utf8))

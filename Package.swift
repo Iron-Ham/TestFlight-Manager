@@ -27,7 +27,7 @@ let package = Package(
       ]
     ),
     .testTarget(
-      name: "TestflightManagerTests",
+      name: "TestFlightManagerTests",
       dependencies: ["TestFlightManager"]
     ),
   ]

@@ -21,7 +21,7 @@ struct LoginEnvironment: @unchecked Sendable {
       return store.fileURL
     },
     printer: { message in
-      Swift.print(message)
+      Logger.stdout.notice(message)
     },
     loadConfiguration: {
       let store = ConfigurationStore()
