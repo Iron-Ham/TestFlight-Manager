@@ -1,5 +1,5 @@
 {
-  "originHash" : "bd66d2c54e6e973022613da7028d82d5743877a6c9ac3ee8c4cbed69cedbc09e",
+  "originHash" : "e0abf397730699c5519a289dc33acb57911fc343d7f8bbb2586a320d636b784b",
   "pins" : [
     {
       "identity" : "appstoreconnect-swift-sdk",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "3c71b2bfa08c54cff86e2ed70f1e39a239396ea3",
         "version" : "4.1.1"
+      }
+    },
+    {
+      "identity" : "opencombine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/OpenCombine/OpenCombine.git",
+      "state" : {
+        "revision" : "8576f0d579b27020beccbccc3ea6844f3ddfc2c2",
+        "version" : "0.14.0"
       }
     },
     {
