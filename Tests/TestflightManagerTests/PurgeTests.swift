@@ -1,7 +1,7 @@
 import AppStoreConnect_Swift_SDK
 import XCTest
 
-@testable import TestflightManager
+@testable import TestFlightManager
 
 final class PurgeTests: XCTestCase {
   private var temporaryFiles: [URL] = []

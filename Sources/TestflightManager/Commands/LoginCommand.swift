@@ -89,7 +89,7 @@ struct Login: AsyncParsableCommand {
     }
 
     throw CLIError.invalidInput(
-      "Missing \(fieldName). Provide \(flag) or run 'testflightmanager config' to set a default."
+      "Missing \(fieldName). Provide \(flag) or run 'TestFlightManager config' to set a default."
     )
   }
 }

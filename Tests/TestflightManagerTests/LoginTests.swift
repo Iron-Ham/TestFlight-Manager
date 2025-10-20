@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import TestflightManager
+@testable import TestFlightManager
 
 final class LoginTests: XCTestCase {
   private var temporaryFiles: [URL] = []

@@ -76,7 +76,7 @@ struct Purge: AsyncParsableCommand {
     do {
       guard let credentials = try environment.loadCredentials() else {
         throw CLIError.credentialsNotFound(
-          "No saved credentials. Run 'testflightmanager login' before purging testers."
+          "No saved credentials. Run 'TestFlightManager login' before purging testers."
         )
       }
 

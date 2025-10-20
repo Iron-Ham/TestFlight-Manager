@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "TestflightManager",
+  name: "TestFlightManager",
   platforms: [
     .macOS(.v13)
   ],
@@ -20,7 +20,7 @@ let package = Package(
   ],
   targets: [
     .executableTarget(
-      name: "TestflightManager",
+      name: "TestFlightManager",
       dependencies: [
         .product(name: "AppStoreConnect-Swift-SDK", package: "appstoreconnect-swift-sdk"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -28,7 +28,7 @@ let package = Package(
     ),
     .testTarget(
       name: "TestflightManagerTests",
-      dependencies: ["TestflightManager"]
+      dependencies: ["TestFlightManager"]
     ),
   ]
 )
