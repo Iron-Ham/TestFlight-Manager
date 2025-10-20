@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
   name: "TestflightManager",
   platforms: [
-    .macOS(.v13),
+    .macOS(.v13)
   ],
   dependencies: [
     .package(
@@ -29,6 +29,6 @@ let package = Package(
     .testTarget(
       name: "TestflightManagerTests",
       dependencies: ["TestflightManager"]
-    )
+    ),
   ]
 )
