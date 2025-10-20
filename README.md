@@ -12,7 +12,7 @@ A command-line tool for managing TestFlight users via App Store Connect. This ut
 
 ## Prerequisites
 
-- macOS 13.0 or later
+- macOS 13.0 or later (or Linux)
 - Swift 6.2 or later
 - App Store Connect API credentials (issuer ID, key ID, and private key file)
 
