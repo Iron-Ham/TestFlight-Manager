@@ -20,4 +20,25 @@ struct CredentialsStore {
     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
     try data.write(to: fileURL, options: [.atomic])
   }
+
+  func load() throws -> Credentials? {
+    guard fileManager.fileExists(atPath: fileURL.path) else {
+      return nil
+    }
+
+    let data = try Data(contentsOf: fileURL)
+    let decoder = JSONDecoder()
+    let persisted = try decoder.decode(PersistedCredentials.self, from: data)
+    return try Credentials(
+      issuerID: persisted.issuerID,
+      keyID: persisted.keyID,
+      privateKeyPath: persisted.privateKeyPath
+    )
+  }
+
+  private struct PersistedCredentials: Codable {
+    let issuerID: String
+    let keyID: String
+    let privateKeyPath: String
+  }
 }

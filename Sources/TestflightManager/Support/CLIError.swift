@@ -4,6 +4,8 @@ enum CLIError: Error, CustomStringConvertible {
   case invalidInput(String)
   case privateKeyNotFound(String)
   case verificationFailed(String)
+  case credentialsNotFound(String)
+  case apiFailure(String)
 
   var description: String {
     switch self {
@@ -13,6 +15,10 @@ enum CLIError: Error, CustomStringConvertible {
       return message
     case .verificationFailed(let message):
       return "Verification failed: \(message)"
+    case .credentialsNotFound(let message):
+      return message
+    case .apiFailure(let message):
+      return "API request failed: \(message)"
     }
   }
 }
