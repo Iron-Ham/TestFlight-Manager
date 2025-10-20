@@ -32,24 +32,33 @@ Keep your private key file secure and never commit it to version control.
 
 ## Installation
 
-### Building from Source
+### Using the Install Script
 
-Clone the repository and build the executable:
+Clone the repository and run the provided installer (installs to `$HOME/.local/bin` by default):
+
+```bash
+git clone https://github.com/Iron-Ham/TestFlight-Manager.git
+cd TestFlight-Manager
+./Scripts/install.sh
+```
+
+Pass a custom destination to place the binary somewhere else, for example:
+
+```bash
+./Scripts/install.sh /usr/local/bin
+```
+
+Ensure the destination directory is on your `PATH` before running the CLI.
+
+### Manual Build
+
+If you prefer manual steps, build and copy the binary yourself:
 
 ```bash
 git clone https://github.com/Iron-Ham/TestFlight-Manager.git
 cd TestFlight-Manager
 swift build -c release
-```
-
-The compiled binary will be located at `.build/release/TestFlightManager`.
-
-### Optional: Install to System Path
-
-To make the tool available system-wide:
-
-```bash
-sudo cp .build/release/TestFlightManager /usr/local/bin/testflight-manager
+cp .build/release/TestFlightManager /usr/local/bin/testflight-manager
 ```
 
 ## Usage
