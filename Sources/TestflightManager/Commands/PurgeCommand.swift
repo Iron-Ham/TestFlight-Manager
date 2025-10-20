@@ -268,17 +268,24 @@ extension Purge {
     let appTheme = appLogger.consoleTheme
     let appDivider = appLogger.applying(appTheme.muted, to: " → ")
     let appBullet = appLogger.applying(appTheme.muted, to: " • ")
+    let maxIndexDigits = String(apps.count).count
+    let maxNameWidth = apps.reduce(0) { current, app in
+      let name = app.attributes?.name ?? "(no name)"
+      return max(current, name.count)
+    }
 
     for (index, app) in apps.enumerated() {
       let name = app.attributes?.name ?? "(no name)"
       let bundleID = app.attributes?.bundleID?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
       let cleanedBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
 
+      let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
       let indexLabel = appLogger.applying(appTheme.metadata, to: "[")
-        + appLogger.applying(appTheme.emphasis, to: "\(index + 1)")
+        + appLogger.applying(appTheme.emphasis, to: paddedNumber)
         + appLogger.applying(appTheme.metadata, to: "]")
 
-      let nameStyled = appLogger.applying(appTheme.commitSubject, to: name)
+      let paddedName = name.padding(toLength: maxNameWidth, withPad: " ", startingAt: 0)
+      let nameStyled = appLogger.applying(appTheme.commitSubject, to: paddedName)
       var details: [String] = []
       if let cleanedBundleID {
         details.append(appLogger.applying(appTheme.path, to: cleanedBundleID))
@@ -313,17 +320,24 @@ extension Purge {
     let groupTheme = groupLogger.consoleTheme
     let groupDivider = groupLogger.applying(groupTheme.muted, to: " → ")
     let groupBullet = groupLogger.applying(groupTheme.muted, to: " • ")
+    let maxIndexDigits = String(groups.count).count
+    let maxNameWidth = groups.reduce(0) { current, group in
+      let name = group.attributes?.name ?? "(no name)"
+      return max(current, name.count)
+    }
 
     for (index, group) in groups.enumerated() {
       let name = group.attributes?.name ?? "(no name)"
       let publicLink = group.attributes?.publicLink
       let publicLinkID = group.attributes?.publicLinkID
 
+      let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
       let indexLabel = groupLogger.applying(groupTheme.metadata, to: "[")
-        + groupLogger.applying(groupTheme.emphasis, to: "\(index + 1)")
+        + groupLogger.applying(groupTheme.emphasis, to: paddedNumber)
         + groupLogger.applying(groupTheme.metadata, to: "]")
 
-      let nameStyled = groupLogger.applying(groupTheme.commitSubject, to: name)
+      let paddedName = name.padding(toLength: maxNameWidth, withPad: " ", startingAt: 0)
+      let nameStyled = groupLogger.applying(groupTheme.commitSubject, to: paddedName)
       var details: [String] = [groupLogger.applying(groupTheme.metadata, to: "id: \(group.id)")]
       if let publicLink {
         details.append(groupLogger.applying(groupTheme.path, to: publicLink))
@@ -380,5 +394,10 @@ extension Purge {
       return response.isEmpty || response == "y" || response == "yes"
     }
     return true
+  }
+
+  private func leftPad(_ value: String, width: Int) -> String {
+    guard value.count < width else { return value }
+    return String(repeating: " ", count: width - value.count) + value
   }
 }
