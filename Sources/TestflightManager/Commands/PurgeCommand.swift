@@ -103,7 +103,8 @@ struct Purge: AsyncParsableCommand {
 
   @Option(
     name: [.customLong("removal-scope")],
-    help: "Scope of removal: 'testflight' removes users entirely (default), 'group-only' removes from beta group only."
+    help:
+      "Scope of removal: 'testflight' removes users entirely (default), 'group-only' removes from beta group only."
   )
   var removalScope: RemovalScope?
 
@@ -358,11 +359,14 @@ extension Purge {
 
     for (index, app) in apps.enumerated() {
       let name = app.attributes?.name ?? "(no name)"
-      let bundleID = app.attributes?.bundleID?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+      let bundleID = app.attributes?.bundleID?.trimmingCharacters(
+        in: CharacterSet.whitespacesAndNewlines
+      )
       let cleanedBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
 
       let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
-      let indexLabel = appLogger.applying(appTheme.metadata, to: "[")
+      let indexLabel =
+        appLogger.applying(appTheme.metadata, to: "[")
         + appLogger.applying(appTheme.emphasis, to: paddedNumber)
         + appLogger.applying(appTheme.metadata, to: "]")
 
@@ -414,7 +418,8 @@ extension Purge {
       let publicLinkID = group.attributes?.publicLinkID
 
       let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
-      let indexLabel = groupLogger.applying(groupTheme.metadata, to: "[")
+      let indexLabel =
+        groupLogger.applying(groupTheme.metadata, to: "[")
         + groupLogger.applying(groupTheme.emphasis, to: paddedNumber)
         + groupLogger.applying(groupTheme.metadata, to: "]")
 
@@ -493,9 +498,10 @@ extension Purge {
     }
 
     while true {
-      let input = try environment.prompt("Enter choice (1-\(options.count)) [1]: ")?.trimmingCharacters(
-        in: .whitespacesAndNewlines
-      )
+      let input = try environment.prompt("Enter choice (1-\(options.count)) [1]: ")?
+        .trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
       if input == nil || input?.isEmpty == true {
         return .testflight
       }
@@ -576,7 +582,7 @@ extension Purge {
     case .text:
       var lines: [String] = [
         "Inactive testers (no sessions in last \(period.description))",
-        ""
+        "",
       ]
       lines.append(contentsOf: testers.map { displayName(for: $0) })
       contents = lines.joined(separator: "\n") + "\n"
@@ -595,7 +601,7 @@ extension Purge {
           escapeCSV(first),
           escapeCSV(last),
           escapeCSV(email),
-          escapeCSV(state)
+          escapeCSV(state),
         ]
         rows.append(columns.joined(separator: ","))
       }

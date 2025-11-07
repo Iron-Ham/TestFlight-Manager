@@ -159,7 +159,10 @@ struct PurgeEnvironment: @unchecked Sendable {
           lastReportedCount = total
         }
       }
-      let coverageLabel = progressLogger.applying(progressTheme.emphasis, to: "\(sessionCounts.count)")
+      let coverageLabel = progressLogger.applying(
+        progressTheme.emphasis,
+        to: "\(sessionCounts.count)"
+      )
       progressLogger.notice(
         "Completed metrics aggregation for " + coverageLabel + " tester(s)."
       )
@@ -187,14 +190,14 @@ struct PurgeEnvironment: @unchecked Sendable {
       guard !testerIDs.isEmpty else { return }
 
       let provider = try makeProvider(from: credentials)
-      
+
       for testerID in testerIDs {
         let request = APIEndpoint
           .v1
           .betaTesters
           .id(testerID)
           .delete
-        
+
         try await provider.request(request)
       }
     },

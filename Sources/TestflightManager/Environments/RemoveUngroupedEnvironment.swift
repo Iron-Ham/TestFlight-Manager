@@ -60,7 +60,7 @@ struct RemoveUngroupedEnvironment: @unchecked Sendable {
       for try await page in provider.paged(request) {
         groups.append(contentsOf: page.data)
       }
-      
+
       let totalLabel = progressLogger.applying(progressTheme.emphasis, to: "\(groups.count)")
       progressLogger.notice("Found " + totalLabel + " beta group(s).")
       return groups
@@ -127,7 +127,7 @@ struct RemoveUngroupedEnvironment: @unchecked Sendable {
       let provider = try makeProvider(from: credentials)
       let progressLogger = Logger.stdout
       let progressTheme = progressLogger.consoleTheme
-      
+
       progressLogger.notice(
         "Removing "
           + progressLogger.applying(progressTheme.emphasis, to: "\(testerIDs.count)")
@@ -138,11 +138,11 @@ struct RemoveUngroupedEnvironment: @unchecked Sendable {
       // We'll batch them in groups of 100 for efficiency
       let batchSize = 100
       var removedCount = 0
-      
+
       for batchStart in stride(from: 0, to: testerIDs.count, by: batchSize) {
         let batchEnd = min(batchStart + batchSize, testerIDs.count)
         let batch = Array(testerIDs[batchStart..<batchEnd])
-        
+
         let request = APIEndpoint
           .v1
           .apps
@@ -157,7 +157,7 @@ struct RemoveUngroupedEnvironment: @unchecked Sendable {
 
         try await provider.request(request)
         removedCount += batch.count
-        
+
         if testerIDs.count > batchSize {
           progressLogger.info(
             "Removed "
@@ -168,7 +168,7 @@ struct RemoveUngroupedEnvironment: @unchecked Sendable {
           )
         }
       }
-      
+
       progressLogger.notice(
         "Successfully removed "
           + progressLogger.applying(progressTheme.emphasis, to: "\(removedCount)")

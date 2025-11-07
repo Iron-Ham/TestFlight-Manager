@@ -48,7 +48,8 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in ["active": 5] },
-        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called") },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
         removeTestersFromTestFlight: { _, ids in removedTesterIDs = ids },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
@@ -155,8 +156,11 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in [:] },
-        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called") },
-        removeTestersFromTestFlight: { _, _ in XCTFail("removeTestersFromTestFlight should not be called") },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
+        removeTestersFromTestFlight: { _, _ in
+          XCTFail("removeTestersFromTestFlight should not be called")
+        },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
         confirm: { _ in true }
@@ -169,7 +173,7 @@ final class PurgeTests: XCTestCase {
       "--beta-group-id", "group",
       "--dry-run",
       "--output-path", outputURL.path,
-      "--output-format", "csv"
+      "--output-format", "csv",
     ])
 
     try await command.run()
@@ -308,7 +312,9 @@ final class PurgeTests: XCTestCase {
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in ["active": 5] },
         removeTestersFromGroup: { _, _, ids in removedFromGroupIDs = ids },
-        removeTestersFromTestFlight: { _, _ in XCTFail("removeTestersFromTestFlight should not be called") },
+        removeTestersFromTestFlight: { _, _ in
+          XCTFail("removeTestersFromTestFlight should not be called")
+        },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
         confirm: { _ in true }
@@ -364,7 +370,8 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in ["active": 5] },
-        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called") },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
         removeTestersFromTestFlight: { _, ids in removedFromTestFlightIDs = ids },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
