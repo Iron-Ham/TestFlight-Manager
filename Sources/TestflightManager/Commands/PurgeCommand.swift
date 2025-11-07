@@ -46,6 +46,20 @@ struct Purge: AsyncParsableCommand {
     case csv
   }
 
+  enum RemovalScope: String, ExpressibleByArgument {
+    case groupOnly = "group-only"
+    case testflight = "testflight"
+
+    var description: String {
+      switch self {
+      case .groupOnly:
+        return "Remove from beta group only"
+      case .testflight:
+        return "Remove from TestFlight entirely"
+      }
+    }
+  }
+
   @Option(
     name: [.customLong("app-id")],
     help: "Identifier of the app that owns the beta group."
@@ -86,6 +100,12 @@ struct Purge: AsyncParsableCommand {
     help: "Output file format (text or csv)."
   )
   var outputFormat: OutputFormat = .text
+
+  @Option(
+    name: [.customLong("removal-scope")],
+    help: "Scope of removal: 'testflight' removes users entirely (default), 'group-only' removes from beta group only."
+  )
+  var removalScope: RemovalScope?
 
   func run() async throws {
     let environment = await PurgeEnvironmentProvider.shared.current()
@@ -180,15 +200,25 @@ struct Purge: AsyncParsableCommand {
         return
       }
 
-      try await environment.removeTesters(
-        credentials,
-        context.betaGroupID,
-        inactiveTesters.map { $0.id }
-      )
-
-      environment.print(
-        "Removed \(inactiveTesters.count) tester(s) from beta group \(context.betaGroupID)."
-      )
+      switch context.removalScope {
+      case .groupOnly:
+        try await environment.removeTestersFromGroup(
+          credentials,
+          context.betaGroupID,
+          inactiveTesters.map { $0.id }
+        )
+        environment.print(
+          "Removed \(inactiveTesters.count) tester(s) from beta group \(context.betaGroupID)."
+        )
+      case .testflight:
+        try await environment.removeTestersFromTestFlight(
+          credentials,
+          inactiveTesters.map { $0.id }
+        )
+        environment.print(
+          "Removed \(inactiveTesters.count) tester(s) from TestFlight."
+        )
+      }
     } catch let error as CLIError {
       throw error
     } catch let error as APIProvider.Error {
@@ -232,6 +262,7 @@ extension Purge {
     let requiresConfirmation: Bool
     let outputPath: String?
     let outputFormat: OutputFormat
+    let removalScope: RemovalScope
   }
 
   fileprivate func resolveContext(using environment: PurgeEnvironment, credentials: Credentials)
@@ -251,7 +282,8 @@ extension Purge {
         dryRun: dryRun,
         requiresConfirmation: false,
         outputPath: Self.normalizeOutputPath(outputPath),
-        outputFormat: outputFormat
+        outputFormat: outputFormat,
+        removalScope: removalScope ?? .testflight
       )
     }
 
@@ -289,6 +321,11 @@ extension Purge {
     let resolvedOutputPath = outputSelection.path
     let resolvedOutputFormat = outputSelection.format
 
+    let resolvedRemovalScope = try selectRemovalScope(
+      current: removalScope,
+      environment: environment
+    )
+
     return RunContext(
       appID: selectedAppID,
       betaGroupID: selectedGroupID,
@@ -296,7 +333,8 @@ extension Purge {
       dryRun: resolvedDryRun,
       requiresConfirmation: !resolvedDryRun,
       outputPath: resolvedOutputPath,
-      outputFormat: resolvedOutputFormat
+      outputFormat: resolvedOutputFormat,
+      removalScope: resolvedRemovalScope
     )
   }
 
@@ -438,6 +476,33 @@ extension Purge {
       return response.isEmpty || response == "y" || response == "yes"
     }
     return true
+  }
+
+  fileprivate func selectRemovalScope(current: RemovalScope?, environment: PurgeEnvironment) throws
+    -> RemovalScope
+  {
+    if let current {
+      return current
+    }
+
+    environment.print("Select removal scope:")
+    let options: [RemovalScope] = [.testflight, .groupOnly]
+    for (index, option) in options.enumerated() {
+      let marker = index == 0 ? " (default)" : ""
+      environment.print(" [\(index + 1)] \(option.description)\(marker)")
+    }
+
+    while true {
+      let input = try environment.prompt("Enter choice (1-\(options.count)) [1]: ")?.trimmingCharacters(
+        in: .whitespacesAndNewlines
+      )
+      if input == nil || input?.isEmpty == true {
+        return .testflight
+      }
+      if let input, let value = Int(input), (1...options.count).contains(value) {
+        return options[value - 1]
+      }
+    }
   }
 
   private func leftPad(_ value: String, width: Int) -> String {
