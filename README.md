@@ -115,6 +115,7 @@ testflight-manager purge \
 - `--app-id <app-id>` - Identifier of the app that owns the beta group
 - `--beta-group-id <beta-group-id>` - Identifier of the beta group to purge
 - `--period <period>` - Inactivity window: `7d`, `30d`, `90d`, or `365d` (default: 30d)
+- `--removal-scope <scope>` - Scope of removal: `testflight` (default) removes users entirely, `group-only` removes from beta group only
 - `--dry-run` - List inactive testers without removing them
 - `-i, --interactive` - Interactive mode with prompts for app/group selection
 
@@ -131,7 +132,8 @@ This will guide you through:
 2. Choosing a beta group from that app
 3. Selecting an inactivity period
 4. Choosing whether to do a dry run
-5. Confirming the removal (if not a dry run)
+5. Selecting the removal scope (remove from TestFlight entirely or just from the group)
+6. Confirming the removal (if not a dry run)
 
 ## Examples
 
@@ -170,11 +172,18 @@ testflight-manager purge \
   --period 90d \
   --dry-run
 
-# If satisfied, remove the --dry-run flag
+# Remove testers from TestFlight entirely (default)
 testflight-manager purge \
   --app-id 1234567890 \
   --beta-group-id abcd-1234-efgh-5678 \
   --period 90d
+
+# Or remove testers from the beta group only
+testflight-manager purge \
+  --app-id 1234567890 \
+  --beta-group-id abcd-1234-efgh-5678 \
+  --period 90d \
+  --removal-scope group-only
 ```
 
 ### Login with Specific Credentials
@@ -196,7 +205,9 @@ testflight-manager login \
 
 3. **Identification**: Testers with zero sessions in the specified period are marked as inactive
 
-4. **Removal**: In non-dry-run mode, inactive testers are removed from the beta group
+4. **Removal**: In non-dry-run mode, inactive testers are removed based on the selected removal scope:
+   - **TestFlight** (default): Completely removes testers from TestFlight
+   - **Group Only**: Removes testers from the specified beta group only
 
 
 ## Dependencies
