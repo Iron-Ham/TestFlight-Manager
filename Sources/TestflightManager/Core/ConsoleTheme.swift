@@ -88,9 +88,9 @@ struct ConsoleTheme {
 
   private static func isTerminal(_ descriptor: Int32) -> Bool {
     #if os(Windows)
-      return false
+      false
     #else
-      return isatty(descriptor) != 0
+      isatty(descriptor) != 0
     #endif
   }
 }

@@ -17,26 +17,26 @@ struct Purge: AsyncParsableCommand {
     var sdkValue: PurgeEnvironment.MetricsPeriod {
       switch self {
       case .days7:
-        return .p7d
+        PurgeEnvironment.MetricsPeriod.p7d
       case .days30:
-        return .p30d
+        PurgeEnvironment.MetricsPeriod.p30d
       case .days90:
-        return .p90d
+        PurgeEnvironment.MetricsPeriod.p90d
       case .days365:
-        return .p365d
+        PurgeEnvironment.MetricsPeriod.p365d
       }
     }
 
     var description: String {
       switch self {
       case .days7:
-        return "7 days"
+        "7 days"
       case .days30:
-        return "30 days"
+        "30 days"
       case .days90:
-        return "90 days"
+        "90 days"
       case .days365:
-        return "365 days"
+        "365 days"
       }
     }
   }
@@ -53,9 +53,9 @@ struct Purge: AsyncParsableCommand {
     var description: String {
       switch self {
       case .groupOnly:
-        return "Remove from beta group only"
+        "Remove from beta group only"
       case .testflight:
-        return "Remove from TestFlight entirely"
+        "Remove from TestFlight entirely"
       }
     }
   }
