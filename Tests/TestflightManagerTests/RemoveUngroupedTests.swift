@@ -138,7 +138,7 @@ final class RemoveUngroupedTests: XCTestCase {
       "--app-id", "app123",
       "--dry-run",
       "--output-path", outputURL.path,
-      "--output-format", "csv"
+      "--output-format", "csv",
     ])
 
     try await command.run()

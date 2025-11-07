@@ -11,7 +11,8 @@ struct PurgeEnvironment: @unchecked Sendable {
   var fetchBetaGroup: (Credentials, String) async throws -> BetaGroup
   var fetchBetaTesters: (Credentials, String) async throws -> [BetaTester]
   var fetchUsage: (Credentials, String, MetricsPeriod) async throws -> [String: Int]
-  var removeTesters: (Credentials, String, [String]) async throws -> Void
+  var removeTestersFromGroup: (Credentials, String, [String]) async throws -> Void
+  var removeTestersFromTestFlight: (Credentials, [String]) async throws -> Void
   var print: (String) -> Void
   var prompt: (String) throws -> String?
   var confirm: (String) throws -> Bool
@@ -158,13 +159,16 @@ struct PurgeEnvironment: @unchecked Sendable {
           lastReportedCount = total
         }
       }
-      let coverageLabel = progressLogger.applying(progressTheme.emphasis, to: "\(sessionCounts.count)")
+      let coverageLabel = progressLogger.applying(
+        progressTheme.emphasis,
+        to: "\(sessionCounts.count)"
+      )
       progressLogger.notice(
         "Completed metrics aggregation for " + coverageLabel + " tester(s)."
       )
       return sessionCounts
     },
-    removeTesters: { credentials, groupID, testerIDs in
+    removeTestersFromGroup: { credentials, groupID, testerIDs in
       guard !testerIDs.isEmpty else { return }
 
       let provider = try makeProvider(from: credentials)
@@ -181,6 +185,21 @@ struct PurgeEnvironment: @unchecked Sendable {
         )
 
       try await provider.request(request)
+    },
+    removeTestersFromTestFlight: { credentials, testerIDs in
+      guard !testerIDs.isEmpty else { return }
+
+      let provider = try makeProvider(from: credentials)
+
+      for testerID in testerIDs {
+        let request = APIEndpoint
+          .v1
+          .betaTesters
+          .id(testerID)
+          .delete
+
+        try await provider.request(request)
+      }
     },
     print: { message in
       Logger.stdout.info(message)

@@ -93,7 +93,8 @@ struct Logger: Sendable {
     }
   }
 
-  private func styles(for level: Level) -> (label: ConsoleTheme.Style, message: ConsoleTheme.Style) {
+  private func styles(for level: Level) -> (label: ConsoleTheme.Style, message: ConsoleTheme.Style)
+  {
     switch level {
     case .debug:
       return (theme.muted, theme.muted)

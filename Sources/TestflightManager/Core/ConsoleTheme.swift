@@ -1,9 +1,9 @@
 import Foundation
 
 #if canImport(Darwin)
-import Darwin
+  import Darwin
 #elseif canImport(Glibc)
-import Glibc
+  import Glibc
 #endif
 
 /// Provides terminal-aware color and style helpers for console output.
@@ -57,7 +57,8 @@ struct ConsoleTheme {
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) -> ConsoleTheme {
     let forceColor = environment["CLICOLOR_FORCE"].flatMap(Int.init) ?? 0
-    let disableColor = environment["NO_COLOR"] != nil
+    let disableColor =
+      environment["NO_COLOR"] != nil
       || (environment["CLICOLOR"].flatMap(Int.init) == 0)
 
     let tty = isTerminal(stream.fileHandle.fileDescriptor)
@@ -87,9 +88,9 @@ struct ConsoleTheme {
 
   private static func isTerminal(_ descriptor: Int32) -> Bool {
     #if os(Windows)
-    return false
+      false
     #else
-    return isatty(descriptor) != 0
+      isatty(descriptor) != 0
     #endif
   }
 }

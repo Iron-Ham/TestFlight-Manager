@@ -17,26 +17,26 @@ struct Purge: AsyncParsableCommand {
     var sdkValue: PurgeEnvironment.MetricsPeriod {
       switch self {
       case .days7:
-        return .p7d
+        PurgeEnvironment.MetricsPeriod.p7d
       case .days30:
-        return .p30d
+        PurgeEnvironment.MetricsPeriod.p30d
       case .days90:
-        return .p90d
+        PurgeEnvironment.MetricsPeriod.p90d
       case .days365:
-        return .p365d
+        PurgeEnvironment.MetricsPeriod.p365d
       }
     }
 
     var description: String {
       switch self {
       case .days7:
-        return "7 days"
+        "7 days"
       case .days30:
-        return "30 days"
+        "30 days"
       case .days90:
-        return "90 days"
+        "90 days"
       case .days365:
-        return "365 days"
+        "365 days"
       }
     }
   }
@@ -44,6 +44,20 @@ struct Purge: AsyncParsableCommand {
   enum OutputFormat: String, ExpressibleByArgument {
     case text
     case csv
+  }
+
+  enum RemovalScope: String, ExpressibleByArgument {
+    case groupOnly = "group-only"
+    case testflight = "testflight"
+
+    var description: String {
+      switch self {
+      case .groupOnly:
+        "Remove from beta group only"
+      case .testflight:
+        "Remove from TestFlight entirely"
+      }
+    }
   }
 
   @Option(
@@ -86,6 +100,13 @@ struct Purge: AsyncParsableCommand {
     help: "Output file format (text or csv)."
   )
   var outputFormat: OutputFormat = .text
+
+  @Option(
+    name: [.customLong("removal-scope")],
+    help:
+      "Scope of removal: 'testflight' removes users entirely (default), 'group-only' removes from beta group only."
+  )
+  var removalScope: RemovalScope?
 
   func run() async throws {
     let environment = await PurgeEnvironmentProvider.shared.current()
@@ -180,15 +201,25 @@ struct Purge: AsyncParsableCommand {
         return
       }
 
-      try await environment.removeTesters(
-        credentials,
-        context.betaGroupID,
-        inactiveTesters.map { $0.id }
-      )
-
-      environment.print(
-        "Removed \(inactiveTesters.count) tester(s) from beta group \(context.betaGroupID)."
-      )
+      switch context.removalScope {
+      case .groupOnly:
+        try await environment.removeTestersFromGroup(
+          credentials,
+          context.betaGroupID,
+          inactiveTesters.map { $0.id }
+        )
+        environment.print(
+          "Removed \(inactiveTesters.count) tester(s) from beta group \(context.betaGroupID)."
+        )
+      case .testflight:
+        try await environment.removeTestersFromTestFlight(
+          credentials,
+          inactiveTesters.map { $0.id }
+        )
+        environment.print(
+          "Removed \(inactiveTesters.count) tester(s) from TestFlight."
+        )
+      }
     } catch let error as CLIError {
       throw error
     } catch let error as APIProvider.Error {
@@ -232,6 +263,7 @@ extension Purge {
     let requiresConfirmation: Bool
     let outputPath: String?
     let outputFormat: OutputFormat
+    let removalScope: RemovalScope
   }
 
   fileprivate func resolveContext(using environment: PurgeEnvironment, credentials: Credentials)
@@ -251,7 +283,8 @@ extension Purge {
         dryRun: dryRun,
         requiresConfirmation: false,
         outputPath: Self.normalizeOutputPath(outputPath),
-        outputFormat: outputFormat
+        outputFormat: outputFormat,
+        removalScope: removalScope ?? .testflight
       )
     }
 
@@ -289,6 +322,11 @@ extension Purge {
     let resolvedOutputPath = outputSelection.path
     let resolvedOutputFormat = outputSelection.format
 
+    let resolvedRemovalScope = try selectRemovalScope(
+      current: removalScope,
+      environment: environment
+    )
+
     return RunContext(
       appID: selectedAppID,
       betaGroupID: selectedGroupID,
@@ -296,7 +334,8 @@ extension Purge {
       dryRun: resolvedDryRun,
       requiresConfirmation: !resolvedDryRun,
       outputPath: resolvedOutputPath,
-      outputFormat: resolvedOutputFormat
+      outputFormat: resolvedOutputFormat,
+      removalScope: resolvedRemovalScope
     )
   }
 
@@ -320,11 +359,14 @@ extension Purge {
 
     for (index, app) in apps.enumerated() {
       let name = app.attributes?.name ?? "(no name)"
-      let bundleID = app.attributes?.bundleID?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+      let bundleID = app.attributes?.bundleID?.trimmingCharacters(
+        in: CharacterSet.whitespacesAndNewlines
+      )
       let cleanedBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
 
       let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
-      let indexLabel = appLogger.applying(appTheme.metadata, to: "[")
+      let indexLabel =
+        appLogger.applying(appTheme.metadata, to: "[")
         + appLogger.applying(appTheme.emphasis, to: paddedNumber)
         + appLogger.applying(appTheme.metadata, to: "]")
 
@@ -376,7 +418,8 @@ extension Purge {
       let publicLinkID = group.attributes?.publicLinkID
 
       let paddedNumber = leftPad("\(index + 1)", width: maxIndexDigits)
-      let indexLabel = groupLogger.applying(groupTheme.metadata, to: "[")
+      let indexLabel =
+        groupLogger.applying(groupTheme.metadata, to: "[")
         + groupLogger.applying(groupTheme.emphasis, to: paddedNumber)
         + groupLogger.applying(groupTheme.metadata, to: "]")
 
@@ -438,6 +481,34 @@ extension Purge {
       return response.isEmpty || response == "y" || response == "yes"
     }
     return true
+  }
+
+  fileprivate func selectRemovalScope(current: RemovalScope?, environment: PurgeEnvironment) throws
+    -> RemovalScope
+  {
+    if let current {
+      return current
+    }
+
+    environment.print("Select removal scope:")
+    let options: [RemovalScope] = [.testflight, .groupOnly]
+    for (index, option) in options.enumerated() {
+      let marker = index == 0 ? " (default)" : ""
+      environment.print(" [\(index + 1)] \(option.description)\(marker)")
+    }
+
+    while true {
+      let input = try environment.prompt("Enter choice (1-\(options.count)) [1]: ")?
+        .trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
+      if input == nil || input?.isEmpty == true {
+        return .testflight
+      }
+      if let input, let value = Int(input), (1...options.count).contains(value) {
+        return options[value - 1]
+      }
+    }
   }
 
   private func leftPad(_ value: String, width: Int) -> String {
@@ -511,7 +582,7 @@ extension Purge {
     case .text:
       var lines: [String] = [
         "Inactive testers (no sessions in last \(period.description))",
-        ""
+        "",
       ]
       lines.append(contentsOf: testers.map { displayName(for: $0) })
       contents = lines.joined(separator: "\n") + "\n"
@@ -530,7 +601,7 @@ extension Purge {
           escapeCSV(first),
           escapeCSV(last),
           escapeCSV(email),
-          escapeCSV(state)
+          escapeCSV(state),
         ]
         rows.append(columns.joined(separator: ","))
       }

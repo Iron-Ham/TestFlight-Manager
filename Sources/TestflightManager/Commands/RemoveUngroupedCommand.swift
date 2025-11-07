@@ -172,7 +172,10 @@ extension RemoveUngrouped {
     let outputFormat: OutputFormat
   }
 
-  fileprivate func resolveContext(using environment: RemoveUngroupedEnvironment, credentials: Credentials)
+  fileprivate func resolveContext(
+    using environment: RemoveUngroupedEnvironment,
+    credentials: Credentials
+  )
     async throws -> RunContext
   {
     let shouldPrompt = interactive || appID == nil
@@ -277,7 +280,7 @@ extension RemoveUngrouped {
     case .text:
       var lines: [String] = [
         "Ungrouped testers (not assigned to any beta group)",
-        ""
+        "",
       ]
       lines.append(contentsOf: testers.map { displayName(for: $0) })
       contents = lines.joined(separator: "\n") + "\n"
@@ -296,7 +299,7 @@ extension RemoveUngrouped {
           escapeCSV(first),
           escapeCSV(last),
           escapeCSV(email),
-          escapeCSV(state)
+          escapeCSV(state),
         ]
         rows.append(columns.joined(separator: ","))
       }

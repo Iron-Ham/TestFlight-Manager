@@ -48,7 +48,9 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in ["active": 5] },
-        removeTesters: { _, _, ids in removedTesterIDs = ids },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
+        removeTestersFromTestFlight: { _, ids in removedTesterIDs = ids },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
         confirm: { _ in true }
@@ -100,7 +102,8 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in [:] },
-        removeTesters: { _, _, _ in removeCallCount += 1 },
+        removeTestersFromGroup: { _, _, _ in removeCallCount += 1 },
+        removeTestersFromTestFlight: { _, _ in removeCallCount += 1 },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
         confirm: { _ in true }
@@ -153,7 +156,11 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in testers },
         fetchUsage: { _, _, _ in [:] },
-        removeTesters: { _, _, _ in XCTFail("removeTesters should not be called") },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
+        removeTestersFromTestFlight: { _, _ in
+          XCTFail("removeTestersFromTestFlight should not be called")
+        },
         print: { printedMessages.append($0) },
         prompt: { _ in nil },
         confirm: { _ in true }
@@ -166,13 +173,13 @@ final class PurgeTests: XCTestCase {
       "--beta-group-id", "group",
       "--dry-run",
       "--output-path", outputURL.path,
-      "--output-format", "csv"
+      "--output-format", "csv",
     ])
 
     try await command.run()
 
     XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
-    let contents = try String(contentsOf: outputURL)
+    let contents = try String(contentsOf: outputURL, encoding: .utf8)
     XCTAssertTrue(contents.contains("tester_id"))
     XCTAssertTrue(contents.contains("inactive"))
     XCTAssertFalse(printedMessages.contains(where: { $0.contains("inactive@example.com") }))
@@ -196,7 +203,8 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in [] },
         fetchUsage: { _, _, _ in [:] },
-        removeTesters: { _, _, _ in },
+        removeTestersFromGroup: { _, _, _ in },
+        removeTestersFromTestFlight: { _, _ in },
         print: { _ in },
         prompt: { _ in nil },
         confirm: { _ in false }
@@ -242,7 +250,8 @@ final class PurgeTests: XCTestCase {
         },
         fetchBetaTesters: { _, _ in [] },
         fetchUsage: { _, _, _ in [:] },
-        removeTesters: { _, _, _ in },
+        removeTestersFromGroup: { _, _, _ in },
+        removeTestersFromTestFlight: { _, _ in },
         print: { _ in },
         prompt: { _ in nil },
         confirm: { _ in false }
@@ -268,6 +277,122 @@ final class PurgeTests: XCTestCase {
     }
   }
 
+  func testRunRemovesTestersFromGroupOnlyWhenSpecified() async throws {
+    let credentials = try makeCredentials()
+
+    var removedFromGroupIDs: [String] = []
+    var printedMessages: [String] = []
+
+    let testers = [
+      makeTester(id: "active", email: "active@example.com"),
+      makeTester(id: "inactive", email: "inactive@example.com"),
+    ]
+
+    let provider = PurgeEnvironmentProvider.shared
+    await provider.set(
+      PurgeEnvironment(
+        loadCredentials: { credentials },
+        fetchApps: { _ in
+          XCTFail("fetchApps should not be called when identifiers are provided")
+          return []
+        },
+        fetchBetaGroupsForApp: { _, _ in
+          XCTFail("fetchBetaGroupsForApp should not be called when identifiers are provided")
+          return []
+        },
+        fetchBetaGroup: { _, _ in
+          BetaGroup(
+            type: .betaGroups,
+            id: "group",
+            relationships: .init(
+              app: .init(data: .init(type: .apps, id: "app"))
+            )
+          )
+        },
+        fetchBetaTesters: { _, _ in testers },
+        fetchUsage: { _, _, _ in ["active": 5] },
+        removeTestersFromGroup: { _, _, ids in removedFromGroupIDs = ids },
+        removeTestersFromTestFlight: { _, _ in
+          XCTFail("removeTestersFromTestFlight should not be called")
+        },
+        print: { printedMessages.append($0) },
+        prompt: { _ in nil },
+        confirm: { _ in true }
+      )
+    )
+    defer { Task { await provider.reset() } }
+
+    let command = try Purge.parse([
+      "--app-id", "app",
+      "--beta-group-id", "group",
+      "--period", "30d",
+      "--removal-scope", "group-only",
+    ])
+
+    try await command.run()
+
+    XCTAssertEqual(removedFromGroupIDs, ["inactive"])
+    XCTAssertTrue(printedMessages.contains { $0.contains("inactive tester") })
+    XCTAssertTrue(printedMessages.contains { $0.contains("Removed 1 tester(s) from beta group") })
+  }
+
+  func testRunRemovesTestersFromTestFlightByDefault() async throws {
+    let credentials = try makeCredentials()
+
+    var removedFromTestFlightIDs: [String] = []
+    var printedMessages: [String] = []
+
+    let testers = [
+      makeTester(id: "active", email: "active@example.com"),
+      makeTester(id: "inactive", email: "inactive@example.com"),
+    ]
+
+    let provider = PurgeEnvironmentProvider.shared
+    await provider.set(
+      PurgeEnvironment(
+        loadCredentials: { credentials },
+        fetchApps: { _ in
+          XCTFail("fetchApps should not be called when identifiers are provided")
+          return []
+        },
+        fetchBetaGroupsForApp: { _, _ in
+          XCTFail("fetchBetaGroupsForApp should not be called when identifiers are provided")
+          return []
+        },
+        fetchBetaGroup: { _, _ in
+          BetaGroup(
+            type: .betaGroups,
+            id: "group",
+            relationships: .init(
+              app: .init(data: .init(type: .apps, id: "app"))
+            )
+          )
+        },
+        fetchBetaTesters: { _, _ in testers },
+        fetchUsage: { _, _, _ in ["active": 5] },
+        removeTestersFromGroup: { _, _, _ in XCTFail("removeTestersFromGroup should not be called")
+        },
+        removeTestersFromTestFlight: { _, ids in removedFromTestFlightIDs = ids },
+        print: { printedMessages.append($0) },
+        prompt: { _ in nil },
+        confirm: { _ in true }
+      )
+    )
+    defer { Task { await provider.reset() } }
+
+    let command = try Purge.parse([
+      "--app-id", "app",
+      "--beta-group-id", "group",
+      "--period", "30d",
+    ])
+
+    try await command.run()
+
+    XCTAssertEqual(removedFromTestFlightIDs, ["inactive"])
+    XCTAssertTrue(printedMessages.contains { $0.contains("inactive tester") })
+    XCTAssertTrue(printedMessages.contains { $0.contains("Removed 1 tester(s) from TestFlight") })
+  }
+
   private func makeCredentials() throws -> Credentials {
     let keyURL = try makeTemporaryKeyFile()
     return try Credentials(issuerID: "ISSUER", keyID: "KEY", privateKeyPath: keyURL.path)
@@ -278,7 +403,7 @@ final class PurgeTests: XCTestCase {
       .appendingPathComponent(UUID().uuidString)
       .appendingPathExtension("p8")
     let data = Data("-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----\n".utf8)
-    FileManager.default.createFile(atPath: url.path, contents: data)
+    _ = FileManager.default.createFile(atPath: url.path, contents: data)
     temporaryFiles.append(url)
     return url
   }
